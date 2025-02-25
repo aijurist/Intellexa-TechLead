@@ -4,11 +4,11 @@ from PIL import Image, ImageDraw, ImageFont
 import zipfile
 import io
 
-def add_text_to_certificate(image, name, college, events, positions, font_path):
+def add_text_to_certificate(image, name, college, events, positions, font):
     draw = ImageDraw.Draw(image)
-    font_name = ImageFont.truetype(font_path, 50)
-    font_college = ImageFont.truetype(font_path, 40)
-    font_events = ImageFont.truetype(font_path, 35)
+    font_name = font if font else ImageFont.load_default()
+    font_college = font if font else ImageFont.load_default()
+    font_events = font if font else ImageFont.load_default()
 
     draw.text(positions["name"], name, fill="black", font=font_name)
     draw.text(positions["college"], college, fill="black", font=font_college)
@@ -16,14 +16,14 @@ def add_text_to_certificate(image, name, college, events, positions, font_path):
 
     return image
 
-def generate_certificates(template, csv_data, positions, font_path, file_type):
+def generate_certificates(template, csv_data, positions, font, file_type):
     df = pd.read_csv(csv_data)
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for index, row in df.iterrows():
             image = template.copy()
-            cert = add_text_to_certificate(image, row['Name'], row['College'], row['Events'], positions, font_path)
+            cert = add_text_to_certificate(image, row['Name'], row['College'], row['Events'], positions, font)
             img_buffer = io.BytesIO()
             cert.save(img_buffer, format=file_type.upper())
             zipf.writestr(f"certificate_{index+1}.{file_type}", img_buffer.getvalue())
@@ -59,15 +59,15 @@ if uploaded_template and uploaded_csv:
     template = Image.open(uploaded_template).convert("RGB")
     
     if uploaded_font:
-        font_path = io.BytesIO(uploaded_font.read())
+        font = ImageFont.truetype(io.BytesIO(uploaded_font.read()), 40)
     else:
-        font_path = None  # Let PIL handle default font
+        font = None  # Use default font
     
     if st.button("Preview Sample Certificate"):
         sample_image = template.copy()
-        sample_cert = add_text_to_certificate(sample_image, "Sample Name", "Sample College", "Sample Event", positions, font_path)
+        sample_cert = add_text_to_certificate(sample_image, "Sample Name", "Sample College", "Sample Event", positions, font)
         st.image(sample_cert, caption="Sample Certificate", use_container_width=True)
     
     if st.button("Generate Certificates"):
-        zip_buffer = generate_certificates(template, uploaded_csv, positions, font_path, file_type)
+        zip_buffer = generate_certificates(template, uploaded_csv, positions, font, file_type)
         st.download_button("Download Certificates", zip_buffer, file_name="certificates.zip", mime="application/zip")
