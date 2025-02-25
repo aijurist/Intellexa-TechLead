@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import streamlit as st
 import io
+import time
 
 def send_emails():
     st.title("Email Sending App")
@@ -25,16 +26,19 @@ def send_emails():
             SMTP_PORT = 587
             
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.set_debuglevel(1)  # Enable debug mode to see SMTP responses
+                server.set_debuglevel(1)  # Enable SMTP debug logs
                 server.starttls()
                 server.login(sender_email, sender_password)
                 
+                success_count = 0
+                failed_emails = []
+
                 for _, row in df.iterrows():
                     recipient_email = row.get("email", "").strip()
                     recipient_name = row.get("name", "").strip()
                     if not recipient_email:
                         continue
-                    
+
                     subject = f"Personalized Message for {recipient_name}" if recipient_name else "Your Message"
                     msg = MIMEMultipart()
                     msg["From"] = sender_email
@@ -45,10 +49,18 @@ def send_emails():
                     try:
                         server.sendmail(sender_email, recipient_email, msg.as_string())
                         st.write(f"✅ Email sent to {recipient_email}")
+                        success_count += 1
+                        time.sleep(2)  # Delay to avoid triggering spam filters
                     except Exception as email_error:
                         st.error(f"❌ Failed to send to {recipient_email}: {email_error}")
+                        failed_emails.append(recipient_email)
 
-            st.success("✅ All emails sent successfully (Check logs for failures)")
+                server.quit()  # Explicitly close connection after sending
+
+            if success_count:
+                st.success(f"✅ {success_count} emails sent successfully!")
+            if failed_emails:
+                st.error(f"❌ Failed to send emails to: {', '.join(failed_emails)}")
         except smtplib.SMTPAuthenticationError:
             st.error("❌ Authentication failed! Check your email & app password.")
         except smtplib.SMTPConnectError:
