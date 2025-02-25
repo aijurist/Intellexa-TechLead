@@ -25,6 +25,7 @@ def send_emails():
             SMTP_PORT = 587
             
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.set_debuglevel(1)  # Enable debug mode to see SMTP responses
                 server.starttls()
                 server.login(sender_email, sender_password)
                 
@@ -41,12 +42,19 @@ def send_emails():
                     msg["Subject"] = subject
                     msg.attach(MIMEText(email_body, "plain"))
                     
-                    server.sendmail(sender_email, recipient_email, msg.as_string())
-                    st.write(f"Email sent to {recipient_email}")
-                
-            st.success("All emails sent successfully!")
+                    try:
+                        server.sendmail(sender_email, recipient_email, msg.as_string())
+                        st.write(f"✅ Email sent to {recipient_email}")
+                    except Exception as email_error:
+                        st.error(f"❌ Failed to send to {recipient_email}: {email_error}")
+
+            st.success("✅ All emails sent successfully (Check logs for failures)")
+        except smtplib.SMTPAuthenticationError:
+            st.error("❌ Authentication failed! Check your email & app password.")
+        except smtplib.SMTPConnectError:
+            st.error("❌ Could not connect to SMTP server. Check your internet connection.")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"❌ Unexpected error: {e}")
 
 if __name__ == "__main__":
     send_emails()
