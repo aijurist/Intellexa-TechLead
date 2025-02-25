@@ -1,10 +1,8 @@
 import streamlit as st
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
-from matplotlib import font_manager
 import zipfile
 import io
-
 
 def add_text_to_certificate(image, name, college, events, positions, font_path):
     draw = ImageDraw.Draw(image)
@@ -17,7 +15,6 @@ def add_text_to_certificate(image, name, college, events, positions, font_path):
     draw.text(positions["events"], events, fill="black", font=font_events)
 
     return image
-
 
 def generate_certificates(template, csv_data, positions, font_path, file_type):
     df = pd.read_csv(csv_data)
@@ -64,7 +61,7 @@ if uploaded_template and uploaded_csv:
     if uploaded_font:
         font_path = io.BytesIO(uploaded_font.read())
     else:
-        font_path = font_manager.findSystemFonts(fontpaths=None, fontext='ttf')[0]
+        font_path = None  # Let PIL handle default font
     
     if st.button("Preview Sample Certificate"):
         sample_image = template.copy()
