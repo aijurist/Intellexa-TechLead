@@ -9,21 +9,17 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
-def add_text_to_certificate(image, name, college, events, font, positions):
+def add_text_to_certificate(image, data, font, positions, font_sizes):
     draw = ImageDraw.Draw(image)
-    font_name = font if font else ImageFont.load_default()
-    font_college = font if font else ImageFont.load_default()
-    font_events = font if font else ImageFont.load_default()
-
-    draw.text(positions["name"], name, fill="black", font=font_name)
-    draw.text(positions["college"], college, fill="black", font=font_college)
-    draw.text(positions["events"], events, fill="black", font=font_events)
-
+    for key, value in data.items():
+        font_size = font_sizes.get(key, 40)  # Default font size
+        font_used = ImageFont.truetype(font, font_size) if font else ImageFont.load_default()
+        draw.text(positions[key], value, fill="black", font=font_used)
     return image
 
-def generate_certificate(template, name, college, events, font, positions, file_type):
+def generate_certificate(template, data, font, positions, font_sizes, file_type):
     image = template.copy()
-    cert = add_text_to_certificate(image, name, college, events, font, positions)
+    cert = add_text_to_certificate(image, data, font, positions, font_sizes)
     img_buffer = io.BytesIO()
     cert.save(img_buffer, format=file_type.upper())
     img_buffer.seek(0)
@@ -41,28 +37,24 @@ def send_emails():
     template_file = st.file_uploader("Upload certificate template (Optional)", type=["png", "jpg", "jpeg"])
     file_type = st.selectbox("Select certificate format", ["png", "jpg", "jpeg"], index=0)
 
-    # Text Position Inputs
-    st.subheader("Adjust Text Positions")
-    name_x = st.number_input("Name X Position", min_value=0, value=200)
-    name_y = st.number_input("Name Y Position", min_value=0, value=150)
-    college_x = st.number_input("College X Position", min_value=0, value=200)
-    college_y = st.number_input("College Y Position", min_value=0, value=200)
-    events_x = st.number_input("Events X Position", min_value=0, value=200)
-    events_y = st.number_input("Events Y Position", min_value=0, value=250)
-
-    positions = {
-        "name": (name_x, name_y),
-        "college": (college_x, college_y),
-        "events": (events_x, events_y)
-    }
+    st.subheader("Adjust Text Positions and Font Sizes")
+    positions = {}
+    font_sizes = {}
+    if csv_file:
+        df = pd.read_csv(csv_file)
+        for column in df.columns:
+            x_pos = st.number_input(f"{column} X Position", min_value=0, value=200)
+            y_pos = st.number_input(f"{column} Y Position", min_value=0, value=150)
+            font_size = st.number_input(f"{column} Font Size", min_value=10, max_value=100, value=40)
+            positions[column] = (x_pos, y_pos)
+            font_sizes[column] = font_size
 
     if template_file and csv_file:
         template = Image.open(template_file).convert("RGB")
         df = pd.read_csv(csv_file)
-
         if st.button("Preview Sample Certificate"):
-            sample_data = df.iloc[0] if not df.empty else {"Name": "Sample Name", "College": "Sample College", "Events": "Sample Event"}
-            _, sample_cert = generate_certificate(template, sample_data["Name"], sample_data["College"], sample_data["Events"], None, positions, file_type)
+            sample_data = df.iloc[0].to_dict() if not df.empty else {"Name": "Sample Name", "College": "Sample College", "Events": "Sample Event"}
+            _, sample_cert = generate_certificate(template, sample_data, None, positions, font_sizes, file_type)
             st.image(sample_cert, caption="Sample Certificate Preview", use_column_width=True)
 
     if st.button("Send Emails"):
@@ -98,7 +90,7 @@ def send_emails():
                         template = Image.open(template_file)
                         for row in data:
                             if row["email"].strip() == recipient:
-                                cert_buffer, _ = generate_certificate(template, row['Name'], row['College'], row['Events'], None, positions, file_type)
+                                cert_buffer, _ = generate_certificate(template, row, None, positions, font_sizes, file_type)
                                 part = MIMEBase("application", "octet-stream")
                                 part.set_payload(cert_buffer.getvalue())
                                 encoders.encode_base64(part)
