@@ -9,18 +9,21 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
-def add_text_to_certificate(image, data, font, positions, font_sizes):
+def add_text_to_certificate(image, data, font_path, positions, font_sizes):
     draw = ImageDraw.Draw(image)
     for key, value in data.items():
         if key in positions:
             font_size = font_sizes.get(key, 40)  # Default font size
-            font_used = ImageFont.truetype(font, font_size) if font else ImageFont.load_default()
+            try:
+                font_used = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+            except IOError:
+                font_used = ImageFont.load_default()  # Fallback font
             draw.text(positions[key], value, fill="black", font=font_used)
     return image
 
-def generate_certificate(template, data, font, positions, font_sizes, file_type):
-    image = template.copy()
-    cert = add_text_to_certificate(image, data, font, positions, font_sizes)
+def generate_certificate(template, data, font_path, positions, font_sizes, file_type):
+    image = template.copy()  # Ensure a fresh copy for each certificate
+    cert = add_text_to_certificate(image, data, font_path, positions, font_sizes)
     img_buffer = io.BytesIO()
     cert.save(img_buffer, format=file_type.upper())
     img_buffer.seek(0)
@@ -41,8 +44,15 @@ def send_emails():
     st.subheader("Adjust Text Positions and Font Sizes")
     positions = {}
     font_sizes = {}
+
     if csv_file:
-        df = pd.read_csv(csv_file)
+        csv_file.seek(0)  # Reset pointer to avoid EmptyDataError
+        try:
+            df = pd.read_csv(csv_file, encoding="utf-8")
+        except pd.errors.EmptyDataError:
+            st.error("Uploaded CSV file is empty or invalid. Please check and re-upload.")
+            st.stop()
+        
         for column in df.columns:
             x_pos = st.number_input(f"{column} X Position", min_value=0, value=200)
             y_pos = st.number_input(f"{column} Y Position", min_value=0, value=150)
@@ -52,7 +62,6 @@ def send_emails():
 
     if template_file and csv_file:
         template = Image.open(template_file).convert("RGB")
-        df = pd.read_csv(csv_file)
         if st.button("Preview Sample Certificate"):
             sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
             _, sample_cert = generate_certificate(template, sample_data, None, positions, font_sizes, file_type)
@@ -64,11 +73,11 @@ def send_emails():
             return
         
         recipients = []
-        data = {}
+        data = []
+        
         if recipient_email:
             recipients.append(recipient_email.strip())
         if csv_file:
-            df = pd.read_csv(csv_file)
             recipients.extend(df["email"].dropna().astype(str).str.strip().tolist())
             data = df.to_dict(orient="records")
         
@@ -91,7 +100,8 @@ def send_emails():
                         template = Image.open(template_file)
                         for row in data:
                             if row["email"].strip() == recipient:
-                                cert_buffer, _ = generate_certificate(template, row, None, positions, font_sizes, file_type)
+                                template_copy = template.copy()  # Fresh copy per recipient
+                                cert_buffer, _ = generate_certificate(template_copy, row, None, positions, font_sizes, file_type)
                                 part = MIMEBase("application", "octet-stream")
                                 part.set_payload(cert_buffer.getvalue())
                                 encoders.encode_base64(part)
@@ -99,6 +109,7 @@ def send_emails():
                                 msg.attach(part)
                     
                     if uploaded_file:
+                        uploaded_file.seek(0)  # Ensure file is read correctly
                         file_data = uploaded_file.read()
                         part = MIMEBase("application", "octet-stream")
                         part.set_payload(file_data)
