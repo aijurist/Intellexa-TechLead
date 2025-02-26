@@ -27,11 +27,17 @@ def add_text_to_certificate(image, data, font_path, positions, font_sizes):
 
 def generate_certificate(template, data, font_path, positions, font_sizes, file_type):
     image = template.copy()
-    cert = add_text_to_certificate(image, data, font_path, positions, font_sizes)
+    
+    # Remove email from data dictionary so it won't be added to the certificate
+    data_without_email = {key: value for key, value in data.items() if key.lower() != "email"}
+    
+    cert = add_text_to_certificate(image, data_without_email, font_path, positions, font_sizes)
+    
     img_buffer = io.BytesIO()
     cert.save(img_buffer, format=file_type.upper())
     img_buffer.seek(0)
     return img_buffer, cert
+
 
 def send_emails():
     st.title("Certificate Generator & Email Sender")
