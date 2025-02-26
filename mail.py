@@ -61,6 +61,18 @@ from email import encoders
 from PIL import Image
 from io import BytesIO
 
+import smtplib
+import base64
+import pandas as pd
+import streamlit as st
+from io import BytesIO
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.base import MIMEBase
+from email import encoders
+from PIL import Image
+
 def send_emails():
     st.title("Certificate Generator & Email Sender")
 
@@ -72,7 +84,7 @@ def send_emails():
     email_body = st.text_area("Email Body")
     uploaded_file = st.file_uploader("Attach a file (Optional)", type=["jpg", "jpeg", "png", "pdf", "zip", "docx"])
     template_file = st.file_uploader("Upload Certificate Template", type=["png", "jpg", "jpeg"])
-    font_file = st.file_uploader("Upload Font File (Optional, e.g., Arial.ttf)", type=["ttf"]) 
+    font_file = st.file_uploader("Upload Font File (Optional, e.g., Arial.ttf)", type=["ttf"])
     file_type = st.selectbox("Select certificate format", ["pdf", "png", "jpg", "jpeg"], index=0)
 
     st.subheader("Set Text Positions and Font Sizes")
@@ -97,7 +109,7 @@ def send_emails():
 
     if template_file and csv_file:
         template = Image.open(template_file).convert("RGB")
-        
+
         if st.button("Preview Sample Certificate"):
             sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
             _, sample_cert = generate_certificate(template, sample_data, font_file, positions, font_sizes, file_type)
@@ -110,21 +122,21 @@ def send_emails():
 
         recipients = []
         data = []
-        
+
         if recipient_email:
             recipients.append(recipient_email.strip())
         if csv_file:
             recipients.extend(df["email"].dropna().astype(str).str.strip().tolist())
             data = df.to_dict(orient="records")
-        
+
         try:
             SMTP_SERVER = "smtp.gmail.com"
             SMTP_PORT = 587
-            
+
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
                 server.starttls()
                 server.login(sender_email, sender_password)
-                
+
                 for recipient in recipients:
                     msg = MIMEMultipart()
                     msg["From"] = sender_email
@@ -133,34 +145,33 @@ def send_emails():
 
                     # Certificate Processing
                     if template_file and data:
-                        template = Image.open(template_file)
-                        for row in data:
-                            if row["email"].strip() == recipient:
+                        row = next((r for r in data if r["email"].strip() == recipient), None)
 
-                                template_copy = template.copy()
-                                cert_buffer, _ = generate_certificate(template_copy, row, font_file, positions, font_sizes, file_type)
+                        if row:
+                            template_copy = template.copy()
+                            cert_buffer, _ = generate_certificate(template_copy, row, font_file, positions, font_sizes, file_type)
 
-                                # Convert certificate to Base64 for embedding
-                                cert_buffer.seek(0)
-                                base64_image = base64.b64encode(cert_buffer.read()).decode('utf-8')
+                            # Convert certificate to Base64 for embedding
+                            cert_buffer.seek(0)
+                            base64_image = base64.b64encode(cert_buffer.read()).decode('utf-8')
 
-                                # Email body with embedded image
-                                html_content = f"""
-                                <html>
-                                    <body>
-                                        <p>{email_body}</p>
-                                        <img src="data:image/{file_type};base64,{base64_image}" alt="Certificate">
-                                        <p>You can also <a href="cid:certificate_attachment">download the certificate</a>.</p>
-                                    </body>
-                                </html>
-                                """
-                                msg.attach(MIMEText(html_content, "html"))
+                            # Email body with embedded image
+                            html_content = f"""
+                            <html>
+                                <body>
+                                    <p>{email_body}</p>
+                                    <img src="data:image/{file_type};base64,{base64_image}" alt="Certificate">
+                                    <p>You can also <a href="cid:certificate_attachment">download the certificate</a>.</p>
+                                </body>
+                            </html>
+                            """
+                            msg.attach(MIMEText(html_content, "html"))
 
-                                # Attach certificate for download
-                                cert_buffer.seek(0)
-                                attachment = MIMEApplication(cert_buffer.read(), Name=f"certificate_{row['Name']}.{file_type}")
-                                attachment.add_header('Content-Disposition', f'attachment; filename="certificate_{row["Name"]}.{file_type}"')
-                                msg.attach(attachment)
+                            # Attach certificate for download
+                            cert_buffer.seek(0)
+                            attachment = MIMEApplication(cert_buffer.read(), Name=f"certificate_{row['Name']}.{file_type}")
+                            attachment.add_header('Content-Disposition', f'attachment; filename="certificate_{row["Name"]}.{file_type}"')
+                            msg.attach(attachment)
 
                     # Attach other uploaded files
                     if uploaded_file:
@@ -171,16 +182,16 @@ def send_emails():
                         encoders.encode_base64(part)
                         part.add_header("Content-Disposition", f"attachment; filename={uploaded_file.name}")
                         msg.attach(part)
-                    
+
                     try:
                         server.sendmail(sender_email, recipient, msg.as_string())
-                        st.write(f"Email sent to {recipient}")
+                        st.write(f"✅ Email sent to {recipient}")
                     except Exception as email_error:
-                        st.error(f"Failed to send email to {recipient}: {email_error}")
-            
-            st.success("All emails sent successfully!")
+                        st.error(f"❌ Failed to send email to {recipient}: {email_error}")
+
+            st.success("🎉 All emails sent successfully!")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"❌ Error: {e}")
 
 if __name__ == "__main__":
     send_emails()
