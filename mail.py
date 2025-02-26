@@ -11,19 +11,23 @@ from email import encoders
 def add_text_to_certificate(image, data, font_path, positions, font_sizes):
     draw = ImageDraw.Draw(image)
     
-    for key, value in data.items():
+    # Load the user-uploaded font **once** and use it for all text
+    fonts = {}
+    
+    for key in data.keys():
         if key in positions:
             font_size = font_sizes.get(key, 40)  # Default to 40 if not set
             
-            # Load user-uploaded font, else use fallback
-            try:
-                font_used = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.truetype("DejaVuSans.ttf", font_size)
-            except IOError:
-                font_used = ImageFont.load_default()  # Fallback font (size might not be adjustable)
+            if font_size not in fonts:  # Load font only if not already loaded for this size
+                try:
+                    fonts[font_size] = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.truetype("DejaVuSans.ttf", font_size)
+                except IOError:
+                    fonts[font_size] = ImageFont.load_default()  # Fallback font
             
-            draw.text(positions[key], str(value), fill="black", font=font_used)
+            draw.text(positions[key], str(data[key]), fill="black", font=fonts[font_size])
     
     return image
+
 
 def generate_certificate(template, data, font_path, positions, font_sizes, file_type):
     image = template.copy()
@@ -37,6 +41,7 @@ def generate_certificate(template, data, font_path, positions, font_sizes, file_
     cert.save(img_buffer, format=file_type.upper())
     img_buffer.seek(0)
     return img_buffer, cert
+
 
 
 def send_emails():
