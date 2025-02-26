@@ -12,9 +12,10 @@ from email import encoders
 def add_text_to_certificate(image, data, font, positions, font_sizes):
     draw = ImageDraw.Draw(image)
     for key, value in data.items():
-        font_size = font_sizes.get(key, 40)  # Default font size
-        font_used = ImageFont.truetype(font, font_size) if font else ImageFont.load_default()
-        draw.text(positions[key], value, fill="black", font=font_used)
+        if key in positions:
+            font_size = font_sizes.get(key, 40)  # Default font size
+            font_used = ImageFont.truetype(font, font_size) if font else ImageFont.load_default()
+            draw.text(positions[key], value, fill="black", font=font_used)
     return image
 
 def generate_certificate(template, data, font, positions, font_sizes, file_type):
@@ -53,7 +54,7 @@ def send_emails():
         template = Image.open(template_file).convert("RGB")
         df = pd.read_csv(csv_file)
         if st.button("Preview Sample Certificate"):
-            sample_data = df.iloc[0].to_dict() if not df.empty else {"Name": "Sample Name", "College": "Sample College", "Events": "Sample Event"}
+            sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
             _, sample_cert = generate_certificate(template, sample_data, None, positions, font_sizes, file_type)
             st.image(sample_cert, caption="Sample Certificate Preview", use_column_width=True)
 
