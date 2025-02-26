@@ -40,6 +40,9 @@ def send_emails():
     uploaded_file = st.file_uploader("Attach a file (Optional)", type=["jpg", "jpeg", "png", "pdf", "zip", "docx"])
     template_file = st.file_uploader("Upload certificate template (Optional)", type=["png", "jpg", "jpeg"])
     file_type = st.selectbox("Select certificate format", ["png", "jpg", "jpeg"], index=0)
+    
+    sample_csv = "email,Name,College,Events\nexample@example.com,John Doe,XYZ University,Hackathon"
+    st.download_button(label="Download Sample CSV", data=sample_csv, file_name="sample_recipients.csv", mime="text/csv")
 
     if st.button("Send Emails"):
         if not all([sender_email, sender_password, email_subject, email_body]) or (not recipient_email and not csv_file):
