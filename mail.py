@@ -49,6 +49,18 @@ def generate_certificate(template, data, font_path, positions, font_sizes, file_
     return img_buffer, cert
 
 
+import base64
+import smtplib
+import pandas as pd
+import streamlit as st
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+from email.mime.base import MIMEBase
+from email import encoders
+from PIL import Image
+from io import BytesIO
+
 def send_emails():
     st.title("Certificate Generator & Email Sender")
 
@@ -118,20 +130,38 @@ def send_emails():
                     msg["From"] = sender_email
                     msg["To"] = recipient
                     msg["Subject"] = email_subject
-                    msg.attach(MIMEText(email_body, "plain"))
-                    
+
+                    # Certificate Processing
                     if template_file and data:
                         template = Image.open(template_file)
                         for row in data:
                             if row["email"].strip() == recipient:
                                 template_copy = template.copy()
                                 cert_buffer, _ = generate_certificate(template_copy, row, font_file, positions, font_sizes, file_type)
-                                part = MIMEBase("application", "octet-stream")
-                                part.set_payload(cert_buffer.getvalue())
-                                encoders.encode_base64(part)
-                                part.add_header("Content-Disposition", f"attachment; filename=certificate_{row['Name']}.{file_type}")
-                                msg.attach(part)
-                    
+
+                                # Convert certificate to Base64 for embedding
+                                cert_buffer.seek(0)
+                                base64_image = base64.b64encode(cert_buffer.read()).decode('utf-8')
+
+                                # Email body with embedded image
+                                html_content = f"""
+                                <html>
+                                    <body>
+                                        <p>{email_body}</p>
+                                        <img src="data:image/{file_type};base64,{base64_image}" alt="Certificate">
+                                        <p>You can also <a href="cid:certificate_attachment">download the certificate</a>.</p>
+                                    </body>
+                                </html>
+                                """
+                                msg.attach(MIMEText(html_content, "html"))
+
+                                # Attach certificate for download
+                                cert_buffer.seek(0)
+                                attachment = MIMEApplication(cert_buffer.read(), Name=f"certificate_{row['Name']}.{file_type}")
+                                attachment.add_header('Content-Disposition', f'attachment; filename="certificate_{row["Name"]}.{file_type}"')
+                                msg.attach(attachment)
+
+                    # Attach other uploaded files
                     if uploaded_file:
                         uploaded_file.seek(0)
                         file_data = uploaded_file.read()
