@@ -10,39 +10,39 @@ from email import encoders
 
 def add_text_to_certificate(image, data, font_path, positions, font_sizes):
     draw = ImageDraw.Draw(image)
-    
-    # Load the user-uploaded font **once** and use it for all text
     fonts = {}
     
     for key in data.keys():
         if key in positions:
             font_size = font_sizes.get(key, 40)  # Default to 40 if not set
             
-            if font_size not in fonts:  # Load font only if not already loaded for this size
+            if font_size not in fonts:
                 try:
                     fonts[font_size] = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.truetype("DejaVuSans.ttf", font_size)
                 except IOError:
-                    fonts[font_size] = ImageFont.load_default()  # Fallback font
+                    fonts[font_size] = ImageFont.load_default()
             
             draw.text(positions[key], str(data[key]), fill="black", font=fonts[font_size])
     
     return image
 
-
-def generate_certificate(template, data, font_path, positions, font_sizes, file_type):
+def generate_certificate(template, data, font_file, positions, font_sizes, file_type):
     image = template.copy()
     
-    # Remove email from data dictionary so it won't be added to the certificate
-    data_without_email = {key: value for key, value in data.items() if key.lower() != "email"}
+    # Handle font file properly
+    font_path = None
+    if font_file is not None:
+        with open("temp_font.ttf", "wb") as f:
+            f.write(font_file.read())
+        font_path = "temp_font.ttf"
     
+    data_without_email = {key: value for key, value in data.items() if key.lower() != "email"}
     cert = add_text_to_certificate(image, data_without_email, font_path, positions, font_sizes)
     
     img_buffer = io.BytesIO()
     cert.save(img_buffer, format=file_type.upper())
     img_buffer.seek(0)
     return img_buffer, cert
-
-
 
 def send_emails():
     st.title("Certificate Generator & Email Sender")
@@ -55,8 +55,7 @@ def send_emails():
     email_body = st.text_area("Email Body")
     uploaded_file = st.file_uploader("Attach a file (Optional)", type=["jpg", "jpeg", "png", "pdf", "zip", "docx"])
     template_file = st.file_uploader("Upload Certificate Template", type=["png", "jpg", "jpeg"])
-    font_file = st.file_uploader("Upload Font File (Optional, e.g., Arial.ttf)", type=["ttf"])
-
+    font_file = st.file_uploader("Upload Font File (Optional, e.g., Arial.ttf)", type=["ttf"]) 
     file_type = st.selectbox("Select certificate format", ["png", "jpg", "jpeg"], index=0)
 
     st.subheader("Set Text Positions and Font Sizes")
@@ -64,7 +63,7 @@ def send_emails():
     font_sizes = {}
 
     if csv_file:
-        csv_file.seek(0)  # Reset pointer
+        csv_file.seek(0)
         try:
             df = pd.read_csv(csv_file, encoding="utf-8")
         except pd.errors.EmptyDataError:
@@ -72,21 +71,19 @@ def send_emails():
             st.stop()
 
         for column in df.columns:
-            if column.lower() != "email":  # Skip the email column
+            if column.lower() != "email":
                 x_pos = st.number_input(f"{column} X Position", min_value=0, value=200)
                 y_pos = st.number_input(f"{column} Y Position", min_value=0, value=150)
                 font_size = st.number_input(f"{column} Font Size", min_value=10, max_value=100, value=40)
                 positions[column] = (x_pos, y_pos)
                 font_sizes[column] = font_size
 
-
     if template_file and csv_file:
         template = Image.open(template_file).convert("RGB")
         
         if st.button("Preview Sample Certificate"):
             sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
-            font_path = font_file if font_file else None
-            _, sample_cert = generate_certificate(template, sample_data, font_path, positions, font_sizes, file_type)
+            _, sample_cert = generate_certificate(template, sample_data, font_file, positions, font_sizes, file_type)
             st.image(sample_cert, caption="Sample Certificate Preview", use_column_width=True)
 
     if st.button("Send Emails"):
@@ -122,9 +119,8 @@ def send_emails():
                         template = Image.open(template_file)
                         for row in data:
                             if row["email"].strip() == recipient:
-                                template_copy = template.copy()  # Fresh copy per recipient
-                                font_path = font_file if font_file else None
-                                cert_buffer, _ = generate_certificate(template_copy, row, font_path, positions, font_sizes, file_type)
+                                template_copy = template.copy()
+                                cert_buffer, _ = generate_certificate(template_copy, row, font_file, positions, font_sizes, file_type)
                                 part = MIMEBase("application", "octet-stream")
                                 part.set_payload(cert_buffer.getvalue())
                                 encoders.encode_base64(part)
@@ -132,7 +128,7 @@ def send_emails():
                                 msg.attach(part)
                     
                     if uploaded_file:
-                        uploaded_file.seek(0)  # Ensure file is read correctly
+                        uploaded_file.seek(0)
                         file_data = uploaded_file.read()
                         part = MIMEBase("application", "octet-stream")
                         part.set_payload(file_data)
