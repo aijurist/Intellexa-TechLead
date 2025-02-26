@@ -134,8 +134,9 @@ def send_emails():
                     # Certificate Processing
                     if template_file and data:
                         template = Image.open(template_file)
-                        row = next((r for r in data if r["email"].strip() == recipient), None)
-                        if row:
+                        for row in data:
+                            if row["email"].strip() == recipient:
+
                                 template_copy = template.copy()
                                 cert_buffer, _ = generate_certificate(template_copy, row, font_file, positions, font_sizes, file_type)
 
