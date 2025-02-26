@@ -67,11 +67,13 @@ def send_emails():
             st.stop()
 
         for column in df.columns:
-            x_pos = st.number_input(f"{column} X Position", min_value=0, value=200)
-            y_pos = st.number_input(f"{column} Y Position", min_value=0, value=150)
-            font_size = st.number_input(f"{column} Font Size", min_value=10, max_value=100, value=40)
-            positions[column] = (x_pos, y_pos)
-            font_sizes[column] = font_size
+            if column.lower() != "email":  # Skip the email column
+                x_pos = st.number_input(f"{column} X Position", min_value=0, value=200)
+                y_pos = st.number_input(f"{column} Y Position", min_value=0, value=150)
+                font_size = st.number_input(f"{column} Font Size", min_value=10, max_value=100, value=40)
+                positions[column] = (x_pos, y_pos)
+                font_sizes[column] = font_size
+
 
     if template_file and csv_file:
         template = Image.open(template_file).convert("RGB")
