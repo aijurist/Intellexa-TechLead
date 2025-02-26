@@ -26,23 +26,28 @@ def add_text_to_certificate(image, data, font_path, positions, font_sizes):
     
     return image
 
-def generate_certificate(template, data, font_file, positions, font_sizes, file_type):
+def generate_certificate(template, data, font_path, positions, font_sizes, file_type):
     image = template.copy()
     
-    # Handle font file properly
-    font_path = None
-    if font_file is not None:
-        with open("temp_font.ttf", "wb") as f:
-            f.write(font_file.read())
-        font_path = "temp_font.ttf"
-    
+    # Remove email from data dictionary
     data_without_email = {key: value for key, value in data.items() if key.lower() != "email"}
+
+    # Apply text to certificate
     cert = add_text_to_certificate(image, data_without_email, font_path, positions, font_sizes)
-    
+
     img_buffer = io.BytesIO()
+    
+    # Convert to PDF for better font preservation
+    if file_type.lower() == "pdf":
+        pdf_buffer = io.BytesIO()
+        cert.save(pdf_buffer, format="PDF")
+        pdf_buffer.seek(0)
+        return pdf_buffer, cert
+
     cert.save(img_buffer, format=file_type.upper())
     img_buffer.seek(0)
     return img_buffer, cert
+
 
 def send_emails():
     st.title("Certificate Generator & Email Sender")
@@ -56,7 +61,7 @@ def send_emails():
     uploaded_file = st.file_uploader("Attach a file (Optional)", type=["jpg", "jpeg", "png", "pdf", "zip", "docx"])
     template_file = st.file_uploader("Upload Certificate Template", type=["png", "jpg", "jpeg"])
     font_file = st.file_uploader("Upload Font File (Optional, e.g., Arial.ttf)", type=["ttf"]) 
-    file_type = st.selectbox("Select certificate format", ["png", "jpg", "jpeg"], index=0)
+    file_type = st.selectbox("Select certificate format", ["pdf", "png", "jpg", "jpeg"], index=0)
 
     st.subheader("Set Text Positions and Font Sizes")
     positions = {}
