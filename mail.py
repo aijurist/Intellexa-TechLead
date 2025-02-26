@@ -65,7 +65,7 @@ def send_emails():
         if st.button("Preview Sample Certificate"):
             sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
             _, sample_cert = generate_certificate(template, sample_data, None, positions, font_sizes, file_type)
-            st.image(sample_cert, caption="Sample Certificate Preview", use_column_width=True)
+            st.image(sample_cert, caption="Sample Certificate Preview", use_container_width=True)
 
     if st.button("Send Emails"):
         if not all([sender_email, sender_password, email_subject, email_body]) or (not recipient_email and not csv_file):
