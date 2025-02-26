@@ -56,7 +56,7 @@ def send_emails():
         for column in df.columns:
             x_pos = st.number_input(f"{column} X Position", min_value=0, value=200)
             y_pos = st.number_input(f"{column} Y Position", min_value=0, value=150)
-            font_size = st.number_input(f"{column} Font Size", min_value=10, max_value=100, value=40)
+            font_size = st.number_input(f"{column} Font Size", min_value=100, max_value=10000, value=1000)
             positions[column] = (x_pos, y_pos)
             font_sizes[column] = font_size
 
