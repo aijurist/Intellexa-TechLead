@@ -340,7 +340,7 @@ if st.button("Preview Sample Certificate"):
         st.write("### Sample Certificate Preview:")
         st.download_button(label="Download Sample Certificate", data=cert_buffer, file_name="sample_certificate.pdf", mime="application/pdf")
     
-    if not all([sender_email, sender_password, email_subject, email_body]) or not csv_file:
-        st.error("Please fill all required fields and upload a CSV file.")
-        st.stop()
+        if not all([sender_email, sender_password, email_subject, email_body]) or not csv_file:
+            st.error("Please fill all required fields and upload a CSV file.")
+            st.stop()
 
