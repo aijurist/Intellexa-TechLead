@@ -328,7 +328,7 @@ def show_certificate_preview(cert_buffer):
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # Convert to PIL image
         
         st.image(img, caption="Sample Certificate Preview", use_column_width=True)
-     except Exception as e:
+    except Exception as e:
         st.error(f"Error displaying preview: {e}")
 
 
