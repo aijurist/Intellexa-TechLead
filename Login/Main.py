@@ -1,27 +1,34 @@
 import streamlit as st
 import hashlib
-import toml
+import json
+import os
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def check_login(username, password, secrets):
-    if username in secrets and secrets[username] == hash_password(password):
-        return True
-    return False
+def load_users():
+    if not os.path.exists("users.json"):
+        return {}
+    with open("users.json", "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open("users.json", "w") as f:
+        json.dump(users, f, indent=4)
+
+def check_login(username, password, users):
+    return username in users and users[username] == hash_password(password)
 
 def save_new_user(username, password):
-    new_secrets = st.secrets._secrets.copy()
-    new_secrets[username] = hash_password(password)
-    with open(".streamlit/secrets.toml", "w") as f:
-        toml.dump(new_secrets, f)
+    users = load_users()
+    users[username] = hash_password(password)
+    save_users(users)
     st.success("User registered successfully! Please log in.")
 
 def main():
     st.title("Login Page")
     
-    if "users" not in st.session_state:
-        st.session_state.users = {user: st.secrets[user] for user in st.secrets}
+    users = load_users()
     
     menu = ["Login", "Sign Up"]
     choice = st.selectbox("Select an option", menu)
@@ -31,17 +38,16 @@ def main():
     
     if choice == "Login":
         if st.button("Login"):
-            if check_login(username, password, st.session_state.users):
+            if check_login(username, password, users):
                 st.success(f"Welcome {username}!")
             else:
                 st.error("Invalid username or password.")
     
     elif choice == "Sign Up":
-        if username in st.session_state.users:
+        if username in users:
             st.error("User already exists. Please log in.")
         elif st.button("Sign Up"):
             save_new_user(username, password)
-            st.session_state.users[username] = hash_password(password)
 
 if __name__ == "__main__":
     main()
