@@ -208,7 +208,6 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.pagesizes import A4
-from pdf2image import convert_from_bytes
 from PIL import Image
 
 # Function to generate a certificate as a PDF with embedded font
