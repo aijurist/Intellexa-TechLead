@@ -211,12 +211,16 @@ from reportlab.lib.pagesizes import A4
 from PIL import Image
 
 # Function to generate a certificate as a PDF with embedded font
-def generate_certificate_pdf(data, font_path, positions, font_sizes, template_path):
+def generate_certificate_pdf(data, font_path, positions, font_sizes, template_file):
     buffer = io.BytesIO()
 
-    # Open template image
-    template = Image.open(template_path)
-    width, height = template.size  # Get the template dimensions
+    # Convert the uploaded template file into a temporary image file
+    template = Image.open(template_file)
+    width, height = template.size  # Get the actual template dimensions
+
+    # Save the image as a temporary file so ReportLab can access it
+    temp_template_path = "./temp_certificate.png"
+    template.save(temp_template_path)
 
     # Create PDF canvas with the same dimensions as the template
     c = canvas.Canvas(buffer, pagesize=(width, height))
@@ -233,7 +237,7 @@ def generate_certificate_pdf(data, font_path, positions, font_sizes, template_pa
         font_name = "Helvetica"  # Default font
 
     # Draw the template image as the background
-    c.drawImage(template_path, 0, 0, width, height)
+    c.drawImage(temp_template_path, 0, 0, width, height)
 
     # Apply text positions and font sizes
     text_drawn = False
