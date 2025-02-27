@@ -208,33 +208,56 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.pagesizes import A4
+from pdf2image import convert_from_bytes
 from PIL import Image
 
-# Generate a certificate as a PDF with embedded font
+# Function to generate a certificate as a PDF with embedded font
 def generate_certificate_pdf(data, font_path, positions, font_sizes):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
 
     # Register the custom font
     if font_path:
-        pdfmetrics.registerFont(TTFont("CustomFont", font_path))
-        font_name = "CustomFont"
+        try:
+            pdfmetrics.registerFont(TTFont("CustomFont", font_path))
+            font_name = "CustomFont"
+        except Exception as e:
+            st.error(f"Font Error: {e}")
+            font_name = "Helvetica"
     else:
-        font_name = "Helvetica"  # Default fallback font
+        font_name = "Helvetica"  # Default font
+
+    # Debug: Ensure data is correct
+    print("\n===== Generating Certificate =====")
+    print("Data:", data)
+    print("Font Path:", font_path)
+    print("Positions:", positions)
+    print("Font Sizes:", font_sizes)
+
+    # Debug text (to verify PDF isn't blank)
+    c.setFont("Helvetica", 20)
+    c.drawString(100, 500, "DEBUG: Certificate Test")
 
     # Apply text positions and font sizes
+    text_drawn = False  # Flag to check if text was drawn
     for key, value in data.items():
-        if key in positions:
+        if key in positions and value:  # Ensure position exists and value is not empty
             x, y = positions[key]
-            font_size = font_sizes.get(key, 40)  # Default font size
+            font_size = font_sizes.get(key, 40)
             c.setFont(font_name, font_size)
+
+            print(f"🖊 Drawing '{value}' at ({x}, {y}) with font size {font_size}")
             c.drawString(x, y, str(value))
+            text_drawn = True
+
+    if not text_drawn:
+        print("⚠ Warning: No text drawn on the certificate!")
 
     c.save()
     buffer.seek(0)
     return buffer
 
-# Send an email with the generated certificate attached
+# Function to send email with certificate attached
 def send_email(sender_email, sender_password, recipient_email, email_subject, email_body, cert_buffer, file_name):
     msg = MIMEMultipart()
     msg["From"] = sender_email
@@ -289,10 +312,34 @@ if csv_file:
             positions[column] = (x_pos, y_pos)
             font_sizes[column] = font_size
 
+# Function to display the certificate preview in Streamlit
+def show_certificate_preview(cert_buffer):
+    try:
+        images = convert_from_bytes(cert_buffer.getvalue())  # Convert PDF bytes to image
+        if images:
+            st.image(images[0], caption="Sample Certificate Preview", use_column_width=True)
+    except Exception as e:
+        st.error(f"Error displaying preview: {e}")
 
+# Preview Certificate Before Sending
+if template_file and csv_file:
+    if st.button("Preview Sample Certificate"):
+        sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
 
+        # Ensure font path is not None
+        if font_file:
+            font_path = "./uploaded_font.ttf"
+            with open(font_path, "wb") as f:
+                f.write(font_file.read())
+        else:
+            font_path = None  # Use default font
 
-
+        # Ensure positions & font_sizes are set
+        if not positions or not font_sizes:
+            st.error("Please set text positions and font sizes before previewing!")
+        else:
+            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
+            show_certificate_preview(cert_buffer)  # Show preview in Streamlit
 
 # Generate and Send Emails Sequentially
 if st.button("Generate & Send Certificates"):
@@ -331,37 +378,3 @@ if st.button("Generate & Send Certificates"):
             failed_count += 1
 
     st.success(f"Process complete! {success_count} emails sent, {failed_count} failed.")
-
-from pdf2image import convert_from_bytes
-import streamlit as st
-import io
-from PIL import Image
-
-# Function to display the certificate preview in Streamlit
-def show_certificate_preview(cert_buffer):
-    # Convert PDF to image
-    images = convert_from_bytes(cert_buffer.getvalue())  # Convert PDF bytes to image
-    if images:
-        st.image(images[0], caption="Sample Certificate Preview", use_column_width=True)
-
-# Preview Certificate Before Sending
-if template_file and csv_file:
-    if st.button("Preview Sample Certificate"):
-        sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
-
-        # Ensure font path is not None
-        if font_file:
-            font_path = "./uploaded_font.ttf"
-            with open(font_path, "wb") as f:
-                f.write(font_file.read())
-        else:
-            font_path = None  # Use default font
-
-        # Ensure positions & font_sizes are set
-        if not positions or not font_sizes:
-            st.error("Please set text positions and font sizes before previewing!")
-        else:
-            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
-
-            # Display certificate preview as an image
-            show_certificate_preview(cert_buffer)
