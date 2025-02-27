@@ -346,23 +346,27 @@ def show_certificate_preview(cert_buffer):
 
 # Preview Sample Certificate Before Sending
 if template_file and csv_file:
+    st.subheader("Preview Certificate")
+
     if st.button("Preview Sample Certificate"):
+        # Load sample data from the CSV
         sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
 
         # Ensure font path is set
+        font_path = None  # Default to None
         if font_file:
             font_path = "./uploaded_font.ttf"
             with open(font_path, "wb") as f:
                 f.write(font_file.read())
-        else:
-            font_path = None  # Use default font
 
         # Ensure positions & font_sizes are set
         if not positions or not font_sizes:
             st.error("Please set text positions and font sizes before previewing!")
         else:
+            # Generate the sample certificate
             cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes, template_file)
             show_certificate_preview(cert_buffer)  # Show preview in Streamlit
+
 
 
 
