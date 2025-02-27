@@ -312,15 +312,23 @@ if csv_file:
             positions[column] = (x_pos, y_pos)
             font_sizes[column] = font_size
 
-import pdfium  # Import pdfium for PDF to image conversion
+
+import fitz  # PyMuPDF for PDF to image conversion
+import streamlit as st
+import io
+from PIL import Image
+
 
 # Function to display the certificate preview in Streamlit
 def show_certificate_preview(cert_buffer):
     try:
-        pdf = pdfium.PdfDocument(cert_buffer.getvalue())  # Load PDF from memory
-        page = pdf.render_to(images=True)[0]  # Render first page as an image
-        st.image(page, caption="Sample Certificate Preview", use_column_width=True)
-    except Exception as e:
+        pdf_document = fitz.open("pdf", cert_buffer.getvalue())  # Load PDF from bytes
+        first_page = pdf_document[0]  # Get first page
+        pix = first_page.get_pixmap()  # Render page to image
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # Convert to PIL image
+        
+        st.image(img, caption="Sample Certificate Preview", use_column_width=True)
+     except Exception as e:
         st.error(f"Error displaying preview: {e}")
 
 
