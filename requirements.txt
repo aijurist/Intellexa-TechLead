@@ -1,3 +1,5 @@
+streamlit
 reportlab
-pdf2image
-pdfium
+pandas
+Pillow
+pymupdf
