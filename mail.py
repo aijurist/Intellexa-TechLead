@@ -312,14 +312,17 @@ if csv_file:
             positions[column] = (x_pos, y_pos)
             font_sizes[column] = font_size
 
+import pdfium  # Import pdfium for PDF to image conversion
+
 # Function to display the certificate preview in Streamlit
 def show_certificate_preview(cert_buffer):
     try:
-        images = convert_from_bytes(cert_buffer.getvalue())  # Convert PDF bytes to image
-        if images:
-            st.image(images[0], caption="Sample Certificate Preview", use_column_width=True)
+        pdf = pdfium.PdfDocument(cert_buffer.getvalue())  # Load PDF from memory
+        page = pdf.render_to(images=True)[0]  # Render first page as an image
+        st.image(page, caption="Sample Certificate Preview", use_column_width=True)
     except Exception as e:
         st.error(f"Error displaying preview: {e}")
+
 
 # Preview Certificate Before Sending
 if template_file and csv_file:
