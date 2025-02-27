@@ -211,11 +211,17 @@ from reportlab.lib.pagesizes import A4
 from PIL import Image
 
 # Function to generate a certificate as a PDF with embedded font
-def generate_certificate_pdf(data, font_path, positions, font_sizes):
+def generate_certificate_pdf(data, font_path, positions, font_sizes, template_path):
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
 
-    # Register the custom font
+    # Open template image
+    template = Image.open(template_path)
+    width, height = template.size  # Get the template dimensions
+
+    # Create PDF canvas with the same dimensions as the template
+    c = canvas.Canvas(buffer, pagesize=(width, height))
+
+    # Register the font safely
     if font_path:
         try:
             pdfmetrics.registerFont(TTFont("CustomFont", font_path))
@@ -226,26 +232,16 @@ def generate_certificate_pdf(data, font_path, positions, font_sizes):
     else:
         font_name = "Helvetica"  # Default font
 
-    # Debug: Ensure data is correct
-    print("\n===== Generating Certificate =====")
-    print("Data:", data)
-    print("Font Path:", font_path)
-    print("Positions:", positions)
-    print("Font Sizes:", font_sizes)
-
-    # Debug text (to verify PDF isn't blank)
-    c.setFont("Helvetica", 20)
-    c.drawString(100, 500, "DEBUG: Certificate Test")
+    # Draw the template image as the background
+    c.drawImage(template_path, 0, 0, width, height)
 
     # Apply text positions and font sizes
-    text_drawn = False  # Flag to check if text was drawn
+    text_drawn = False
     for key, value in data.items():
-        if key in positions and value:  # Ensure position exists and value is not empty
+        if key in positions and value:
             x, y = positions[key]
             font_size = font_sizes.get(key, 40)
             c.setFont(font_name, font_size)
-
-            print(f"🖊 Drawing '{value}' at ({x}, {y}) with font size {font_size}")
             c.drawString(x, y, str(value))
             text_drawn = True
 
@@ -255,6 +251,7 @@ def generate_certificate_pdf(data, font_path, positions, font_sizes):
     c.save()
     buffer.seek(0)
     return buffer
+
 
 # Function to send email with certificate attached
 def send_email(sender_email, sender_password, recipient_email, email_subject, email_body, cert_buffer, file_name):
@@ -348,7 +345,7 @@ if template_file and csv_file:
         if not positions or not font_sizes:
             st.error("Please set text positions and font sizes before previewing!")
         else:
-            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
+            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes, template_file)
             show_certificate_preview(cert_buffer)  # Show preview in Streamlit
 
 # Generate and Send Emails Sequentially
