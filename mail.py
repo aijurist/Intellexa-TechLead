@@ -332,15 +332,27 @@ if st.button("Generate & Send Certificates"):
 
     st.success(f"Process complete! {success_count} emails sent, {failed_count} failed.")
 
-if st.button("Preview Sample Certificate"):
+# Preview Certificate Before Sending
+if template_file and csv_file:
+    if st.button("Preview Sample Certificate"):
         sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
-        cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
 
-        # Display the certificate preview
-        st.write("### Sample Certificate Preview:")
-        st.download_button(label="Download Sample Certificate", data=cert_buffer, file_name="sample_certificate.pdf", mime="application/pdf")
-    
-        if not all([sender_email, sender_password, email_subject, email_body]) or not csv_file:
-            st.error("Please fill all required fields and upload a CSV file.")
-            st.stop()
+        # Ensure font path is not None
+        if font_file:
+            font_path = "./uploaded_font.ttf"
+            with open(font_path, "wb") as f:
+                f.write(font_file.read())
+        else:
+            font_path = None  # Use default font
+
+        # Ensure positions & font_sizes are set
+        if not positions or not font_sizes:
+            st.error("Please set text positions and font sizes before previewing!")
+        else:
+            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
+
+            # Display the certificate preview
+            st.write("### Sample Certificate Preview:")
+            st.download_button(label="Download Sample Certificate", data=cert_buffer, file_name="sample_certificate.pdf", mime="application/pdf")
+
 
