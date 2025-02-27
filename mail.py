@@ -318,20 +318,6 @@ import streamlit as st
 import io
 from PIL import Image
 
-
-# # Function to display the certificate preview in Streamlit
-# def show_certificate_preview(cert_buffer):
-#     try:
-#         pdf_document = fitz.open("pdf", cert_buffer.getvalue())  # Load PDF from bytes
-#         first_page = pdf_document[0]  # Get first page
-#         pix = first_page.get_pixmap()  # Render page to image
-#         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # Convert to PIL image
-        
-#         st.image(img, caption="Sample Certificate Preview", use_column_width=True)
-#     except Exception as e:
-#         st.error(f"Error displaying preview: {e}")
-
-
 # Preview Certificate Before Sending
 def show_certificate_preview(cert_buffer):
     try:
@@ -343,30 +329,6 @@ def show_certificate_preview(cert_buffer):
         st.image(img, caption="Sample Certificate Preview", use_column_width=True)
     except Exception as e:
         st.error(f"Error displaying preview: {e}")
-
-# Preview Sample Certificate Before Sending
-if template_file and csv_file:
-    st.subheader("Preview Certificate")
-
-    if st.button("Preview Sample Certificate"):
-        # Load sample data from the CSV
-        sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
-
-        
-        if font_file:
-            font_path = "./uploaded_font.ttf"
-            with open(font_path, "wb") as f:
-                f.write(font_file.read())
-
-        # Ensure positions & font_sizes are set
-        if not positions or not font_sizes:
-            st.error("Please set text positions and font sizes before previewing!")
-        else:
-            # Generate the sample certificate
-            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes, template_file)
-            show_certificate_preview(cert_buffer)  # Show preview in Streamlit
-
-
 
 
 # Define font_path globally
