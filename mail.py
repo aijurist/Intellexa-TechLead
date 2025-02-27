@@ -291,17 +291,20 @@ if csv_file:
 
 
 
-if st.button("Preview Sample Certificate"):
+
+
+
+# Generate and Send Emails Sequentially
+if st.button("Generate & Send Certificates"):
+
+    if st.button("Preview Sample Certificate"):
         sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
         cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
 
         # Display the certificate preview
         st.write("### Sample Certificate Preview:")
         st.download_button(label="Download Sample Certificate", data=cert_buffer, file_name="sample_certificate.pdf", mime="application/pdf")
-
-
-# Generate and Send Emails Sequentially
-if st.button("Generate & Send Certificates"):
+    
     if not all([sender_email, sender_password, email_subject, email_body]) or not csv_file:
         st.error("Please fill all required fields and upload a CSV file.")
         st.stop()
