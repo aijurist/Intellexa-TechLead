@@ -319,17 +319,17 @@ import io
 from PIL import Image
 
 
-# Function to display the certificate preview in Streamlit
-def show_certificate_preview(cert_buffer):
-    try:
-        pdf_document = fitz.open("pdf", cert_buffer.getvalue())  # Load PDF from bytes
-        first_page = pdf_document[0]  # Get first page
-        pix = first_page.get_pixmap()  # Render page to image
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # Convert to PIL image
+# # Function to display the certificate preview in Streamlit
+# def show_certificate_preview(cert_buffer):
+#     try:
+#         pdf_document = fitz.open("pdf", cert_buffer.getvalue())  # Load PDF from bytes
+#         first_page = pdf_document[0]  # Get first page
+#         pix = first_page.get_pixmap()  # Render page to image
+#         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # Convert to PIL image
         
-        st.image(img, caption="Sample Certificate Preview", use_column_width=True)
-    except Exception as e:
-        st.error(f"Error displaying preview: {e}")
+#         st.image(img, caption="Sample Certificate Preview", use_column_width=True)
+#     except Exception as e:
+#         st.error(f"Error displaying preview: {e}")
 
 
 # Preview Certificate Before Sending
@@ -352,8 +352,7 @@ if template_file and csv_file:
         # Load sample data from the CSV
         sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
 
-        # Ensure font path is set
-        font_path = None  # Default to None
+        
         if font_file:
             font_path = "./uploaded_font.ttf"
             with open(font_path, "wb") as f:
@@ -369,6 +368,26 @@ if template_file and csv_file:
 
 
 
+
+# Define font_path globally
+font_path = None  # Default to None
+if font_file:
+    font_path = "./uploaded_font.ttf"
+    with open(font_path, "wb") as f:
+        f.write(font_file.read())
+
+# Preview Sample Certificate Before Sending
+if template_file and csv_file:
+    st.subheader("Preview Certificate")
+
+    if st.button("Preview Sample Certificate"):
+        sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
+
+        if not positions or not font_sizes:
+            st.error("Please set text positions and font sizes before previewing!")
+        else:
+            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes, template_file)
+            show_certificate_preview(cert_buffer)  # Show preview in Streamlit
 
 # Ensure the template file is uploaded
 if template_file:
@@ -388,7 +407,7 @@ if st.button("Generate & Send Certificates"):
             st.warning("Skipping row with missing email.")
             continue
 
-        # Generate certificate
+        # Generate certificate (now font_path is always available)
         cert_buffer = generate_certificate_pdf(row, font_path, positions, font_sizes, template_file)
         file_name = f"certificate_{row['Name']}.pdf"
 
