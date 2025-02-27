@@ -332,6 +332,18 @@ if st.button("Generate & Send Certificates"):
 
     st.success(f"Process complete! {success_count} emails sent, {failed_count} failed.")
 
+from pdf2image import convert_from_bytes
+import streamlit as st
+import io
+from PIL import Image
+
+# Function to display the certificate preview in Streamlit
+def show_certificate_preview(cert_buffer):
+    # Convert PDF to image
+    images = convert_from_bytes(cert_buffer.getvalue())  # Convert PDF bytes to image
+    if images:
+        st.image(images[0], caption="Sample Certificate Preview", use_column_width=True)
+
 # Preview Certificate Before Sending
 if template_file and csv_file:
     if st.button("Preview Sample Certificate"):
@@ -351,8 +363,5 @@ if template_file and csv_file:
         else:
             cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes)
 
-            # Display the certificate preview
-            st.write("### Sample Certificate Preview:")
-            st.download_button(label="Download Sample Certificate", data=cert_buffer, file_name="sample_certificate.pdf", mime="application/pdf")
-
-
+            # Display certificate preview as an image
+            show_certificate_preview(cert_buffer)
