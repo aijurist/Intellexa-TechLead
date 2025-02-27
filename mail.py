@@ -333,41 +333,15 @@ def show_certificate_preview(cert_buffer):
 
 
 # Preview Certificate Before Sending
-if template_file and csv_file:
-    if st.button("Preview Sample Certificate"):
-        sample_data = df.iloc[0].to_dict() if not df.empty else {col: "Sample " + col for col in positions.keys()}
-
-        # Ensure font path is not None
-        if font_file:
-            font_path = "./uploaded_font.ttf"
-            with open(font_path, "wb") as f:
-                f.write(font_file.read())
-        else:
-            font_path = None  # Use default font
-
-        # Ensure positions & font_sizes are set
-        if not positions or not font_sizes:
-            st.error("Please set text positions and font sizes before previewing!")
-        else:
-            cert_buffer = generate_certificate_pdf(sample_data, font_path, positions, font_sizes, template_file)
-            show_certificate_preview(cert_buffer)  # Show preview in Streamlit
+# Ensure the template file is uploaded
+if template_file:
+    template = Image.open(template_file).convert("RGB")
+else:
+    st.error("Please upload a certificate template.")
+    st.stop()
 
 # Generate and Send Emails Sequentially
 if st.button("Generate & Send Certificates"):
-
-    if template_file:
-        template = Image.open(template_file).convert("RGB")
-    else:
-        st.error("Please upload a certificate template.")
-        st.stop()
-
-    # Save font file locally if uploaded
-    font_path = None
-    if font_file:
-        font_path = "./uploaded_font.ttf"
-        with open(font_path, "wb") as f:
-            f.write(font_file.read())
-
     success_count = 0
     failed_count = 0
 
@@ -378,7 +352,7 @@ if st.button("Generate & Send Certificates"):
             continue
 
         # Generate certificate
-        cert_buffer = generate_certificate_pdf(row, font_path, positions, font_sizes)
+        cert_buffer = generate_certificate_pdf(row, font_path, positions, font_sizes, template_file)
         file_name = f"certificate_{row['Name']}.pdf"
 
         # Send email with attachment
