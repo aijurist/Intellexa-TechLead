@@ -61,53 +61,58 @@
 
 
 import streamlit as st
-import google.auth
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from google.oauth2 import service_account
 
-# Load Google Drive credentials from Streamlit Secrets
+# Set up authentication
+SERVICE_ACCOUNT_FILE = "your-service-account.json"
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-creds_dict = dict(st.secrets["google"])
-creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-drive_service = build("drive", "v3", credentials=creds)
 
-# Function to get files in a specific folder
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES
+)
+drive_service = build("drive", "v3", credentials=credentials)
+
+# Function to fetch files in a given folder
 def get_files_in_folder(folder_id):
     query = f"'{folder_id}' in parents and trashed=false"
     results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
     return results.get("files", [])
 
-# Function to get all top-level folders
-def get_folders():
-    query = "mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents"
-    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
-    return results.get("files", [])
+# Function to get the root folder contents
+def get_files_in_root():
+    return get_files_in_folder("root")
 
-# Streamlit UI
-st.title("📂 Google Drive File Manager")
+# Recursive function to display folders with toggle
+def display_folder_contents(folder_id, level=0):
+    files = get_files_in_folder(folder_id)
 
-# Display folders with toggle functionality
-st.subheader("📁 Folders")
-folders = get_folders()
-if folders:
-    for folder in folders:
-        with st.expander(f"📂 {folder['name']}"):
-            files_in_folder = get_files_in_folder(folder["id"])
-            if files_in_folder:
-                for file in files_in_folder:
-                    file_url = f"https://drive.google.com/file/d/{file['id']}/view"
-                    st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
-            else:
-                st.write("📂 (Empty folder)")
+    if not files:
+        st.write(" " * (level * 4) + "📂 No files found")
+
+    for file in files:
+        indent = " " * (level * 4)
+        if file["mimeType"] == "application/vnd.google-apps.folder":
+            with st.expander(f"{indent}📂 {file['name']}"):
+                display_folder_contents(file["id"], level + 1)
+        else:
+            file_url = f"https://drive.google.com/file/d/{file['id']}/view"
+            st.markdown(f"{indent}📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
+
+# UI Section
+st.title("📂 Google Drive File Explorer")
+
+# Display files in root folder
+st.subheader("📄 Files in Root Directory")
+root_files = get_files_in_root()
+
+if root_files:
+    for file in root_files:
+        if file["mimeType"] == "application/vnd.google-apps.folder":
+            with st.expander(f"📂 {file['name']}"):
+                display_folder_contents(file["id"])
+        else:
+            file_url = f"https://drive.google.com/file/d/{file['id']}/view"
+            st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
 else:
-    st.write("No folders found.")
-
-# Display files in root (not inside any folder)
-st.subheader("📄 Files in Root")
-files_in_root = get_files_in_folder("root")
-if files_in_root:
-    for file in files_in_root:
-        file_url = f"https://drive.google.com/file/d/{file['id']}/view"
-        st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
-else:
-    st.write("No files found in the root directory.")
+    st.write("⚠️ No files found in the root directory.")
