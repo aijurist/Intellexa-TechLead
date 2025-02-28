@@ -41,8 +41,12 @@ def generate_drive_link(file_id, mime_type):
 
 # Function to check permissions of a file
 def check_permissions(file_id):
-    permissions = drive_service.permissions().list(fileId=file_id).execute()
-    return permissions.get("permissions", [])
+    try:
+        permissions = drive_service.permissions().list(fileId=file_id, fields="permissions(id, role, type, emailAddress)").execute()
+        return permissions.get("permissions", [])
+    except Exception as e:
+        return [f"Error fetching permissions: {str(e)}"]
+
 
 # Streamlit UI
 st.title("📂 Google Drive Viewer")
