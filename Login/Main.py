@@ -71,35 +71,43 @@ creds_dict = dict(st.secrets["google"])
 creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 drive_service = build("drive", "v3", credentials=creds)
 
-# Function to get all files
-def get_all_files():
-    results = drive_service.files().list(fields="files(id, name)").execute()
+# Function to get files in a specific folder
+def get_files_in_folder(folder_id):
+    query = f"'{folder_id}' in parents and trashed=false"
+    results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
     return results.get("files", [])
 
-# Function to get folders from Google Drive
+# Function to get all top-level folders
 def get_folders():
-    query = "mimeType='application/vnd.google-apps.folder' and trashed=false"
+    query = "mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents"
     results = drive_service.files().list(q=query, fields="files(id, name)").execute()
     return results.get("files", [])
 
 # Streamlit UI
 st.title("📂 Google Drive File Manager")
 
-# Display folders
+# Display folders with toggle functionality
 st.subheader("📁 Folders")
 folders = get_folders()
 if folders:
     for folder in folders:
-        st.markdown(f"📂 **{folder['name']}**", unsafe_allow_html=True)
+        with st.expander(f"📂 {folder['name']}"):
+            files_in_folder = get_files_in_folder(folder["id"])
+            if files_in_folder:
+                for file in files_in_folder:
+                    file_url = f"https://drive.google.com/file/d/{file['id']}/view"
+                    st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
+            else:
+                st.write("📂 (Empty folder)")
 else:
     st.write("No folders found.")
 
-st.subheader("📄 Files")
-files = get_all_files()
-if files:
-    for file in files:
+# Display files in root (not inside any folder)
+st.subheader("📄 Files in Root")
+files_in_root = get_files_in_folder("root")
+if files_in_root:
+    for file in files_in_root:
         file_url = f"https://drive.google.com/file/d/{file['id']}/view"
         st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
 else:
-    st.write("No files found.")
-
+    st.write("No files found in the root directory.")
