@@ -12,13 +12,10 @@ creds = service_account.Credentials.from_service_account_info(creds_dict, scopes
 
 drive_service = build("drive", "v3", credentials=creds)
 
+# Function to get all files
 def get_all_files():
     results = drive_service.files().list(fields="files(id, name)").execute()
     return results.get("files", [])
-
-st.write(get_all_files())  # Debugging
-
-st.write(get_files("root"))  # Debugging output
 
 # Function to get folders from Google Drive
 def get_folders(parent_folder_id="root"):
@@ -56,6 +53,10 @@ def check_permissions(file_id):
     except Exception as e:
         return [f"Error fetching permissions: {str(e)}"]
 
+# ✅ NOW call functions after defining them
+st.write(get_all_files())  # Debugging
+
+st.write(get_files("root"))  # Debugging output
 
 # Streamlit UI
 st.title("📂 Google Drive Viewer")
