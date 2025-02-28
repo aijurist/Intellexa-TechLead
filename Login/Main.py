@@ -39,6 +39,11 @@ def generate_drive_link(file_id, mime_type):
         return f"{base_url}/file/d/{file_id}/view"
     return f"{base_url}/open?id={file_id}"
 
+# Function to check permissions of a file
+def check_permissions(file_id):
+    permissions = drive_service.permissions().list(fileId=file_id).execute()
+    return permissions.get("permissions", [])
+
 # Streamlit UI
 st.title("📂 Google Drive Viewer")
 
@@ -70,4 +75,12 @@ else:
     for file in files:
         file_link = generate_drive_link(file["id"], file["mimeType"])
         st.markdown(f"📄 **[{file['name']}]({file_link})**")
-
+        
+        # Fetch and display permission details
+        permissions = check_permissions(file["id"])
+        if permissions:
+            st.write("🔑 **Permissions:**")
+            for perm in permissions:
+                st.write(f"- Role: {perm.get('role', 'Unknown')}, Type: {perm.get('type', 'Unknown')}")
+        else:
+            st.write("🔒 No permissions found.")
