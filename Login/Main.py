@@ -13,6 +13,7 @@ creds = service_account.Credentials.from_service_account_info(creds_dict, scopes
 drive_service = build("drive", "v3", credentials=creds)
 
 
+st.write(get_files("root"))  # Debugging output
 
 # Function to get folders from Google Drive
 def get_folders(parent_folder_id="root"):
