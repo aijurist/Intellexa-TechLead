@@ -12,6 +12,11 @@ creds = service_account.Credentials.from_service_account_info(creds_dict, scopes
 
 drive_service = build("drive", "v3", credentials=creds)
 
+def get_all_files():
+    results = drive_service.files().list(fields="files(id, name)").execute()
+    return results.get("files", [])
+
+st.write(get_all_files())  # Debugging
 
 st.write(get_files("root"))  # Debugging output
 
