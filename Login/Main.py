@@ -5,11 +5,14 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 # Load Google Drive credentials from Streamlit Secrets
-creds_dict = dict(st.secrets["google"])  # Convert AttrDict to a normal dict
-creds = service_account.Credentials.from_service_account_info(creds_dict)
+SCOPES = ["https://www.googleapis.com/auth/drive"]
 
-# Initialize Google Drive API
+creds_dict = dict(st.secrets["google"])  # Convert AttrDict to a normal dict
+creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)  # Add scopes explicitly
+
 drive_service = build("drive", "v3", credentials=creds)
+
+
 
 # Function to get folders from Google Drive
 def get_folders(parent_folder_id="root"):
