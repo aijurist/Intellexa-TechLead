@@ -13,25 +13,31 @@ drive_service = build("drive", "v3", credentials=creds)
 
 # Function to get folders from Google Drive
 def get_folders(parent_folder_id="root"):
-    query = f"'{parent_folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder'"
+    query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
     results = drive_service.files().list(q=query, fields="files(id, name)").execute()
     return results.get("files", [])
 
 # Function to get files inside a selected folder
 def get_files(folder_id):
-    query = f"'{folder_id}' in parents"
+    query = f"'{folder_id}' in parents and trashed=false"
     results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
     return results.get("files", [])
 
 # Function to generate a Google Drive direct link
 def generate_drive_link(file_id, mime_type):
-    if mime_type == "application/vnd.google-apps.spreadsheet":
-        return f"https://docs.google.com/spreadsheets/d/{file_id}"
-    elif mime_type == "application/vnd.google-apps.document":
-        return f"https://docs.google.com/document/d/{file_id}"
+    base_url = "https://drive.google.com"
+    google_docs_types = {
+        "application/vnd.google-apps.spreadsheet": "spreadsheets",
+        "application/vnd.google-apps.document": "document",
+        "application/vnd.google-apps.presentation": "presentation",
+        "application/vnd.google-apps.drawing": "drawings",
+        "application/vnd.google-apps.form": "forms",
+    }
+    if mime_type in google_docs_types:
+        return f"https://docs.google.com/{google_docs_types[mime_type]}/d/{file_id}"
     elif mime_type.startswith("application/"):
-        return f"https://drive.google.com/file/d/{file_id}/view"
-    return f"https://drive.google.com/open?id={file_id}"
+        return f"{base_url}/file/d/{file_id}/view"
+    return f"{base_url}/open?id={file_id}"
 
 # Streamlit UI
 st.title("📂 Google Drive Viewer")
@@ -39,16 +45,19 @@ st.title("📂 Google Drive Viewer")
 # Get root folders
 folders = get_folders()
 
-# Sidebar to select a folder
-folder_selection = st.sidebar.selectbox("Select a Folder", ["Root"] + [folder["name"] for folder in folders])
+# Handle empty folder case
+folder_options = ["Root"]
+folder_dict = {"Root": "root"}
+
+if folders:
+    for folder in folders:
+        folder_options.append(folder["name"])
+        folder_dict[folder["name"]] = folder["id"]
+
+folder_selection = st.sidebar.selectbox("Select a Folder", folder_options)
 
 # Get the selected folder ID
-selected_folder_id = "root"
-if folder_selection != "Root":
-    for folder in folders:
-        if folder["name"] == folder_selection:
-            selected_folder_id = folder["id"]
-            break
+selected_folder_id = folder_dict[folder_selection]
 
 # Display files inside the selected folder
 files = get_files(selected_folder_id)
@@ -56,7 +65,7 @@ files = get_files(selected_folder_id)
 st.subheader(f"📁 {folder_selection}")
 
 if not files:
-    st.write("No files found in this folder.")
+    st.write("📭 No files found in this folder.")
 else:
     for file in files:
         file_link = generate_drive_link(file["id"], file["mimeType"])
