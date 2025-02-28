@@ -4,10 +4,9 @@ import google.auth
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# Load credentials from Streamlit Secrets
-creds_dict = st.secrets["google"]
-creds_json = json.dumps(creds_dict)
-creds = service_account.Credentials.from_service_account_info(json.loads(creds_json))
+# Load Google Drive credentials from Streamlit Secrets
+creds_dict = dict(st.secrets["google"])  # Convert AttrDict to a normal dict
+creds = service_account.Credentials.from_service_account_info(creds_dict)
 
 # Initialize Google Drive API
 drive_service = build("drive", "v3", credentials=creds)
