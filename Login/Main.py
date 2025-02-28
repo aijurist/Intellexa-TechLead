@@ -68,28 +68,25 @@
 #     st.write("No standalone files found.")
 
 
-
-import os
-import json
 import time
 import streamlit as st
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# Load credentials securely from environment variables
-creds_dict = json.loads(os.getenv("GOOGLE_CREDENTIALS_JSON"))
+# Load credentials securely from Streamlit Secrets
 SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
+creds_dict = dict(st.secrets["google"])
 creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 
-# Initialize Google Drive service
+# Initialize Google Drive API
 drive_service = build("drive", "v3", credentials=creds)
 
-# Rate-limiting function to prevent API abuse
+# Rate-limiting function to prevent excessive API calls
 def api_request(func, *args, **kwargs):
-    time.sleep(0.5)  # Prevent excessive calls
+    time.sleep(0.5)  # Prevents API abuse
     return func(*args, **kwargs)
 
-# Function to get all files securely with `webViewLink`
+# Function to fetch all files with secure webViewLink
 def get_all_files():
     query = "trashed=false"
     results = api_request(
@@ -99,7 +96,7 @@ def get_all_files():
     ).execute()
     return results.get("files", [])
 
-# Function to get only folders
+# Function to fetch only folders
 def get_folders():
     query = "mimeType='application/vnd.google-apps.folder' and trashed=false"
     results = api_request(
@@ -116,7 +113,7 @@ st.title("🔐 Secure Google Drive File Manager")
 folders = get_folders()
 files = get_all_files()
 
-# Categorizing files into folders
+# Categorize files into folders and standalone files
 folder_contents = {folder["id"]: [] for folder in folders}
 standalone_files = []
 
@@ -139,7 +136,7 @@ if folders:
         with st.expander(f"📂 {folder['name']}"):
             if folder_contents[folder["id"]]:
                 for file in folder_contents[folder["id"]]:
-                    file_url = file.get("webViewLink", "#")  # Uses secure Google Drive link
+                    file_url = file.get("webViewLink", "#")  # Secure Drive link
                     st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
             else:
                 st.write("No files in this folder.")
@@ -154,4 +151,3 @@ if standalone_files:
         st.markdown(f"📄 **[{file['name']}]({file_url})**", unsafe_allow_html=True)
 else:
     st.write("No standalone files found.")
-
