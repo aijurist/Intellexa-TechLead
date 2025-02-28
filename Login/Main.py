@@ -7,8 +7,8 @@ from googleapiclient.discovery import build
 # Load Google Drive credentials from Streamlit Secrets
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
-creds_dict = dict(st.secrets["google"])  # Convert AttrDict to a normal dict
-creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)  # Add scopes explicitly
+creds_dict = dict(st.secrets["google"])
+creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 
 drive_service = build("drive", "v3", credentials=creds)
 
