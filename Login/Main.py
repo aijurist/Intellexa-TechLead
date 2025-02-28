@@ -1,53 +1,65 @@
 import streamlit as st
-import hashlib
 import json
-import os
+import google.auth
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+# Load credentials from Streamlit Secrets
+creds_dict = st.secrets["google"]
+creds_json = json.dumps(creds_dict)
+creds = service_account.Credentials.from_service_account_info(json.loads(creds_json))
 
-def load_users():
-    if not os.path.exists("users.json"):
-        return {}
-    with open("users.json", "r") as f:
-        return json.load(f)
+# Initialize Google Drive API
+drive_service = build("drive", "v3", credentials=creds)
 
-def save_users(users):
-    with open("users.json", "w") as f:
-        json.dump(users, f, indent=4)
+# Function to get folders from Google Drive
+def get_folders(parent_folder_id="root"):
+    query = f"'{parent_folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder'"
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    return results.get("files", [])
 
-def check_login(username, password, users):
-    return username in users and users[username] == hash_password(password)
+# Function to get files inside a selected folder
+def get_files(folder_id):
+    query = f"'{folder_id}' in parents"
+    results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+    return results.get("files", [])
 
-def save_new_user(username, password):
-    users = load_users()
-    users[username] = hash_password(password)
-    save_users(users)
-    st.success("User registered successfully! Please log in.")
+# Function to generate a Google Drive direct link
+def generate_drive_link(file_id, mime_type):
+    if mime_type == "application/vnd.google-apps.spreadsheet":
+        return f"https://docs.google.com/spreadsheets/d/{file_id}"
+    elif mime_type == "application/vnd.google-apps.document":
+        return f"https://docs.google.com/document/d/{file_id}"
+    elif mime_type.startswith("application/"):
+        return f"https://drive.google.com/file/d/{file_id}/view"
+    return f"https://drive.google.com/open?id={file_id}"
 
-def main():
-    st.title("Login Page")
-    
-    users = load_users()
-    
-    menu = ["Login", "Sign Up"]
-    choice = st.selectbox("Select an option", menu)
-    
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    
-    if choice == "Login":
-        if st.button("Login"):
-            if check_login(username, password, users):
-                st.success(f"Welcome {username}!")
-            else:
-                st.error("Invalid username or password.")
-    
-    elif choice == "Sign Up":
-        if username in users:
-            st.error("User already exists. Please log in.")
-        elif st.button("Sign Up"):
-            save_new_user(username, password)
+# Streamlit UI
+st.title("📂 Google Drive Viewer")
 
-if __name__ == "__main__":
-    main()
+# Get root folders
+folders = get_folders()
+
+# Sidebar to select a folder
+folder_selection = st.sidebar.selectbox("Select a Folder", ["Root"] + [folder["name"] for folder in folders])
+
+# Get the selected folder ID
+selected_folder_id = "root"
+if folder_selection != "Root":
+    for folder in folders:
+        if folder["name"] == folder_selection:
+            selected_folder_id = folder["id"]
+            break
+
+# Display files inside the selected folder
+files = get_files(selected_folder_id)
+
+st.subheader(f"📁 {folder_selection}")
+
+if not files:
+    st.write("No files found in this folder.")
+else:
+    for file in files:
+        file_link = generate_drive_link(file["id"], file["mimeType"])
+        st.markdown(f"📄 **[{file['name']}]({file_link})**")
+
