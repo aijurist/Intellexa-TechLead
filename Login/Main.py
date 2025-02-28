@@ -13,7 +13,7 @@ drive_service = build("drive", "v3", credentials=creds)
 
 # Function to get folders from Google Drive
 def get_folders(parent_folder_id="root"):
-    query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    query = "trashed=false"
     results = drive_service.files().list(q=query, fields="files(id, name)").execute()
     return results.get("files", [])
 
