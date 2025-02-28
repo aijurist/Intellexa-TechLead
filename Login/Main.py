@@ -68,12 +68,8 @@ from google.oauth2 import service_account
 SERVICE_ACCOUNT_FILE = "your-service-account.json"
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
-import json
-from google.oauth2 import service_account
 
-credentials = service_account.Credentials.from_service_account_info(
-    json.loads(st.secrets["google"])
-)
+credentials = service_account.Credentials.from_service_account_info(st.secrets["google"])
 
 drive_service = build("drive", "v3", credentials=credentials)
 
