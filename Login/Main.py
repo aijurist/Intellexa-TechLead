@@ -1,100 +1,58 @@
 import streamlit as st
-import json
 import google.auth
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 # Load Google Drive credentials from Streamlit Secrets
 SCOPES = ["https://www.googleapis.com/auth/drive"]
+creds = service_account.Credentials.from_service_account_info(dict(st.secrets["google"]), scopes=SCOPES)
 
-creds_dict = dict(st.secrets["google"])
-creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-
+# Initialize Drive API client
 drive_service = build("drive", "v3", credentials=creds)
 
-# Function to get all files
+# Function to retrieve all files with pagination
+@st.cache_data(ttl=600)  # Cache results for 10 minutes to optimize performance
 def get_all_files():
-    results = drive_service.files().list(fields="files(id, name)").execute()
-    return results.get("files", [])
+    files = []
+    page_token = None
+    while True:
+        results = drive_service.files().list(
+            fields="nextPageToken, files(id, name)",
+            pageSize=100,  # Fetch 100 files at a time for efficiency
+            pageToken=page_token
+        ).execute()
+        files.extend(results.get("files", []))
+        page_token = results.get("nextPageToken")
+        if not page_token:
+            break
+    return files
 
-# Function to get folders from Google Drive
-def get_folders(parent_folder_id="root"):
+# Function to retrieve only folders from Google Drive
+@st.cache_data(ttl=600)
+def get_folders():
     query = "mimeType='application/vnd.google-apps.folder' and trashed=false"
-    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    results = drive_service.files().list(
+        q=query, fields="files(id, name)"
+    ).execute()
     return results.get("files", [])
-
-# Function to get files inside a selected folder
-def get_files(folder_id):
-    query = f"'{folder_id}' in parents and trashed=false"
-    results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
-    return results.get("files", [])
-
-# Function to generate a Google Drive direct link
-def generate_drive_link(file_id, mime_type):
-    base_url = "https://drive.google.com"
-    google_docs_types = {
-        "application/vnd.google-apps.spreadsheet": "spreadsheets",
-        "application/vnd.google-apps.document": "document",
-        "application/vnd.google-apps.presentation": "presentation",
-        "application/vnd.google-apps.drawing": "drawings",
-        "application/vnd.google-apps.form": "forms",
-    }
-    if mime_type in google_docs_types:
-        return f"https://docs.google.com/{google_docs_types[mime_type]}/d/{file_id}"
-    elif mime_type.startswith("application/"):
-        return f"{base_url}/file/d/{file_id}/view"
-    return f"{base_url}/open?id={file_id}"
-
-# Function to check permissions of a file
-def check_permissions(file_id):
-    try:
-        permissions = drive_service.permissions().list(fileId=file_id, fields="permissions(id, role, type, emailAddress)").execute()
-        return permissions.get("permissions", [])
-    except Exception as e:
-        return [f"Error fetching permissions: {str(e)}"]
-
-# ✅ NOW call functions after defining them
-st.write(get_all_files())  # Debugging
-
-st.write(get_files("root"))  # Debugging output
 
 # Streamlit UI
-st.title("📂 Google Drive Viewer")
+st.title("Google Drive File Viewer")
 
-# Get root folders
-folders = get_folders()
-
-# Handle empty folder case
-folder_options = ["Root"]
-folder_dict = {"Root": "root"}
-
-if folders:
-    for folder in folders:
-        folder_options.append(folder["name"])
-        folder_dict[folder["name"]] = folder["id"]
-
-folder_selection = st.sidebar.selectbox("Select a Folder", folder_options)
-
-# Get the selected folder ID
-selected_folder_id = folder_dict[folder_selection]
-
-# Display files inside the selected folder
-files = get_files(selected_folder_id)
-
-st.subheader(f"📁 {folder_selection}")
-
-if not files:
-    st.write("📭 No files found in this folder.")
-else:
+# Display files
+files = get_all_files()
+if files:
+    st.write(f"### Found {len(files)} files:")
     for file in files:
-        file_link = generate_drive_link(file["id"], file["mimeType"])
-        st.markdown(f"📄 **[{file['name']}]({file_link})**")
-        
-        # Fetch and display permission details
-        permissions = check_permissions(file["id"])
-        if permissions:
-            st.write("🔑 **Permissions:**")
-            for perm in permissions:
-                st.write(f"- Role: {perm.get('role', 'Unknown')}, Type: {perm.get('type', 'Unknown')}")
-        else:
-            st.write("🔒 No permissions found.")
+        st.write(f"- 📄 **{file['name']}** (ID: `{file['id']}`)")
+else:
+    st.write("No files found.")
+
+# Display folders
+folders = get_folders()
+if folders:
+    st.write(f"### Found {len(folders)} folders:")
+    for folder in folders:
+        st.write(f"- 📁 **{folder['name']}** (ID: `{folder['id']}`)")
+else:
+    st.write("No folders found.")
