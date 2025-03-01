@@ -71,7 +71,6 @@
 # if __name__ == "__main__":
 #     send_emails()
 
-
 import smtplib
 import pandas as pd
 from email.mime.text import MIMEText
@@ -90,8 +89,8 @@ def send_emails():
     recipient_email = st.text_input("Enter recipient email (leave blank if uploading CSV)")
     csv_file = st.file_uploader("Upload recipients CSV file", type="csv")
     
-    email_subject = st.text_input("Enter email subject (Use **bold** or *italic* for formatting)")
-    email_body = st.text_area("Enter email body (HTML supported, use {name} for personalization)")
+    email_subject = st.text_input("Enter email subject")
+    email_body = st.text_area("Enter email body (supports HTML: <b>bold</b>, <i>italic</i>, etc.)")
     
     attachment = st.file_uploader("Attach a file", type=None)
     
@@ -120,31 +119,29 @@ def send_emails():
                     msg = MIMEMultipart()
                     msg["From"] = sender_email
                     msg["To"] = recipient["email"]
+                    msg["Subject"] = email_subject
                     
-                    # Convert **bold** and *italic* in subject to HTML
-                    formatted_subject = email_subject.replace("**", "<b>").replace("*", "<i>").replace("</b><b>", "</b>").replace("</i><i>", "</i>")
-                    msg["Subject"] = formatted_subject
-                    
-                    # Personalize and convert body to HTML
+                    # Support HTML for formatting
                     personalized_body = email_body.replace("{name}", recipient["name"])
-                    msg.attach(MIMEText(personalized_body, "html"))
+                    msg.attach(MIMEText(personalized_body, "html"))  # Change to "html"
                     
                     if attachment is not None:
+                        file_data = attachment.read()
                         part = MIMEBase("application", "octet-stream")
-                        part.set_payload(attachment.read())
+                        part.set_payload(file_data)
                         encoders.encode_base64(part)
                         part.add_header("Content-Disposition", f"attachment; filename={attachment.name}")
                         msg.attach(part)
                     
                     try:
                         server.sendmail(sender_email, recipient["email"], msg.as_string())
-                        st.write(f"Email sent to {recipient['email']}")
+                        st.write(f"✅ Email sent to {recipient['email']}")
                     except Exception as email_error:
-                        st.error(f"Failed to send email to {recipient['email']}: {email_error}")
+                        st.error(f"❌ Failed to send email to {recipient['email']}: {email_error}")
             
-            st.success("All emails sent successfully!")
+            st.success("🎉 All emails sent successfully!")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"🚨 Error: {e}")
 
 if __name__ == "__main__":
     send_emails()
